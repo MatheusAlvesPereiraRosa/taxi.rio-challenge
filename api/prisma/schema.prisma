@@ -5,11 +5,62 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+    provider = "prisma-client"
+    output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+    PASSENGER
+    DRIVER
+}
+
+enum RideStatus {
+    REQUESTED
+    ACCEPTED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+model User {
+    id        String   @id @default(uuid()) @db.Char(36)
+    name      String   @db.VarChar(100)
+    email     String   @unique @db.VarChar(255)
+    role      UserRole
+    createdAt DateTime @default(now())
+
+    passengerRides Ride[] @relation("PassengerRides")
+    driverRides    Ride[] @relation("DriverRides")
+}
+
+model Ride {
+    id String @id @default(uuid()) @db.Char(36)
+
+    passengerId String  @db.Char(36)
+    driverId    String? @db.Char(36)
+
+    originAddress   String @db.VarChar(255)
+    originLatitude  Float
+    originLongitude Float
+
+    destinationAddress   String @db.VarChar(255)
+    destinationLatitude  Float
+    destinationLongitude Float
+
+    status     RideStatus @default(REQUESTED)
+    createdAt  DateTime   @default(now())
+    updatedAt  DateTime   @updatedAt
+    canceledAt DateTime?
+
+    passenger User  @relation("PassengerRides", fields: [passengerId], references: [id])
+    driver    User? @relation("DriverRides", fields: [driverId], references: [id])
+
+    @@index([passengerId])
+    @@index([driverId])
+    @@index([status])
 }
