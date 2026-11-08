@@ -1,7 +1,4 @@
-export enum UserRole {
-    PASSENGER = 'PASSENGER',
-    DRIVER = 'DRIVER',
-}
+import { UserRole } from "@prisma/client";
 
 export interface AuthUser {
     sub: string;
@@ -10,4 +7,18 @@ export interface AuthUser {
     exp: number;
     iss: string;
     aud: string;
+}
+
+/* Information about the authenticated user on the request */
+export interface AuthenticatedUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface AccessTokenPayload {
+  sub: string;
+  iat: number;
+  exp: number;
 }
