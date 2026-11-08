@@ -4,7 +4,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { AccessTokenPayload, AuthenticatedUser } from './interfaces';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
-import { userInfo } from 'node:os';
 
 @Injectable()
 export class AuthService {
@@ -93,6 +92,8 @@ export class AuthService {
                 message: 'User registered successfully'
             }
         } catch (error: any) {
+            if (error instanceof BadRequestException) throw error
+            console.log(error)
             throw new BadRequestException('Error when registering user', {
                 description: error.message,
                 cause: new Error(error.message)

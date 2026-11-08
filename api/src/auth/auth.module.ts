@@ -21,14 +21,29 @@ import { RolesGuard } from 'src/guards/roles.guard';
                     'JWT_PUBLIC_KEY_PATH',
                 );
 
+                const privateKeyPath = config.getOrThrow<string>(
+                    'JWT_PRIVATE_KEY_PATH',
+                );
+
                 const publicKey = readFileSync(resolve(process.cwd(), publicKeyPath), 'utf-8');
+                const privateKey = readFileSync(
+                    resolve(process.cwd(), privateKeyPath),
+                    'utf8',
+                )
 
                 return {
                     publicKey,
+                    privateKey,
+                    signOptions: {
+                        algorithm: 'RS256',
+                        issuer: 'corridas-api',
+                        audience: 'corridas-app',
+                        expiresIn: '1h',
+                    },
                     verifyOptions: {
                         algorithms: ['RS256'],
-                        issuer: config.getOrThrow<string>('JWT_ISSUER'),
-                        audience: config.getOrThrow<string>('JWT_AUDIENCE'),
+                        issuer: 'corridas-api',
+                        audience: 'corridas-app',
                     }
                 }
             }
