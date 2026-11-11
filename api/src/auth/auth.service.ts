@@ -55,8 +55,9 @@ export class AuthService {
         } catch (error: any) {
             if (error instanceof UnauthorizedException) throw error
 
-            throw new Error('Error when authenticating user', {
-                cause: new Error(error.message)
+            throw new UnauthorizedException('Error when authenticating user', {
+                cause: new Error(error.message),
+                description: error.message,
             });
         }
     }
