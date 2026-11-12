@@ -29,6 +29,12 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
   redis:
     image: redis:7-alpine
     container_name: corridas-redis
@@ -38,6 +44,12 @@ services:
     volumes:
       - redis_data:/data
 
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   mongodb:
     image: mongo:7
     container_name: corridas-mongodb
@@ -46,6 +58,87 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: corridas-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+
+      RABBITMQ_URL: amqp://corridas:corridas_dev_password@rabbitmq:5672
+
+      JWT_PRIVATE_KEY_PATH: /run/secrets/private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/public.pem
+      JWT_ISSUER: corridas-api
+      JWT_AUDIENCE: corridas-app
+
+    secrets:
+      - database_url
+
+    command:
+      - sh
+      - -c
+      - |
+        export DATABASE_URL="$$(cat /run/secrets/database_url)"
+        npx prisma migrate deploy &&
+        exec node dist/main.js
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - ./api/keys/private.pem:/run/secrets/private.pem:ro
+      - ./api/keys/public.pem:/run/secrets/public.pem:ro
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: corridas-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+      RABBITMQ_URL: amqp://corridas:corridas_dev_password@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DATABASE: corridas
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+secrets:
+  database_url:
+    file: ./secrets/database_url.txt
 
 volumes:
   mysql_data:

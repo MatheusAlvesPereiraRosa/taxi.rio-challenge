@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+
+keys/
+*.pem
+*.key
+
+generated/
+.git
+.gitignore
+
+npm-debug.log*
+*.tsbuildinfo
