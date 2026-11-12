@@ -136,6 +136,18 @@ services:
       mongodb:
         condition: service_healthy
 
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: corridas-ui
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 secrets:
   database_url:
     file: ./secrets/database_url.txt
