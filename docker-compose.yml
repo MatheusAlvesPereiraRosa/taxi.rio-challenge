@@ -91,7 +91,7 @@ services:
       - |
         export DATABASE_URL="$$(cat /run/secrets/database_url)"
         npx prisma migrate deploy &&
-        exec node dist/main.js
+        exec node dist/src/main.js
 
     ports:
       - "3000:3000"
