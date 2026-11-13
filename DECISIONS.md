@@ -7,3 +7,7 @@ Escolhi começar pela autenticação com JWT, modelando o banco de dados, inicia
 ## Decisão Número 2 
 
 Escolhi utilizar o PrismaORM para fazer migrations e modulagem de banco de dados
+
+## Decisão Número 3 
+
+Seguir com finalização do projeto com logger e docker concluídos

@@ -5,6 +5,7 @@ import { AuthenticatedUser } from 'src/auth/interfaces';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma, RideStatus } from '@prisma/client';
 import { RideEvent } from './interfaces';
+import { jsonLog } from 'src/commom/logging/json-logger';
 
 @Injectable()
 export class RidesService {
@@ -38,6 +39,12 @@ export class RidesService {
                         'Idempotency-Key already used with a different request',
                     );
                 }
+
+                jsonLog('info', 'Idempotent ride request replayed', {
+                    correlationId,
+                    rideId: existing!.id,
+                    passengerId: user.id,
+                })
 
                 return existing;
             }
@@ -80,6 +87,13 @@ export class RidesService {
                 })
 
                 return ride
+            })
+
+            jsonLog('info', 'Ride created', {
+                correlationId,
+                rideId: result.id,
+                passengerId: user.id,
+                status: result.status,
             })
 
             return {
@@ -186,6 +200,14 @@ export class RidesService {
 
             const updatedRide = await tx.ride.findUniqueOrThrow({
                 where: { id },
+            })
+
+            jsonLog('info', 'Ride status updated', {
+                correlationId,
+                rideId: updatedRide.id,
+                driverId: user.id,
+                status: updatedRide.status,
+                version: updatedRide.version,
             })
 
             const event: RideEvent = {

@@ -15,3 +15,17 @@ Tive alguns problemas envolvendo as configurações do prisma, mas o tradeoff co
 Finalizei o módulo de autenticação e de corridas (sem filas)
 
 ## Dia 3
+
+Criar docker compose com todas os serviços principais rodando
+
+Configurar secrets para build de prisma rodar em tempo de build
+
+Criar e configurar RabbitMQ em projeto
+
+Criar front-end inicial com ajuda do ChatGPT
+
+## Dia 4 (final)
+
+Atualizar configurações do front-end
+
+Adicionar logger simples para eventos do back-end

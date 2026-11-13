@@ -30,7 +30,9 @@ function Summary({ title, value }: { title: string; value: string }) {
 
 export function PassengerPage() {
     const { session } = useAuth();
+
     const token = session!.accessToken;
+
     const [origin, setOrigin] = useState<Location>(DEFAULT_ORIGIN);
     const [destination, setDestination] = useState<Location>(DEFAULT_DESTINATION);
     const [rideId, setRideId] = useState(() => sessionStorage.getItem(LAST_RIDE_KEY) ?? '');
@@ -41,7 +43,7 @@ export function PassengerPage() {
     const [notice, setNotice] = useState('');
 
     useEffect(() => {
-        const previousId = sessionStorage.getItem(LAST_RIDE_KEY);
+        const previousId = sessionStorage.getItem(LAST_RIDE_KEY) ?? "";
         if (!previousId) return;
         let active = true;
         taxiApi.getRide(token, previousId).then((result) => { if (active) setRide(result); }).catch(() => { });
@@ -49,14 +51,20 @@ export function PassengerPage() {
     }, [token]);
 
     async function create(event: FormEvent) {
-        event.preventDefault(); setError(''); setNotice('');
+        event.preventDefault(); 
+        setError(''); 
+        setNotice('');
+
         const signature = JSON.stringify({ origin, destination });
+        
         if (pending && pending.signature !== signature) {
             setError('Ride details changed after an attempt. Reset the retry key to start a new operation.'); return;
         }
+
         const attempt = pending ?? { key: crypto.randomUUID(), signature };
         if (!pending) { sessionStorage.setItem(PENDING_RIDE_KEY, JSON.stringify(attempt)); setPending(attempt); }
         setBusy(true);
+
         try {
             const created = await taxiApi.createRide(token, origin, destination, attempt.key);
             setRide(created); setRideId(created.id); sessionStorage.setItem(LAST_RIDE_KEY, created.id);
@@ -72,7 +80,12 @@ export function PassengerPage() {
         finally { setBusy(false); }
     }
 
-    function resetKey() { sessionStorage.removeItem(PENDING_RIDE_KEY); setPending(null); setError(''); setNotice('Ready for a new booking attempt.'); }
+    function resetKey() { 
+        sessionStorage.removeItem(PENDING_RIDE_KEY); 
+        setPending(null); 
+        setError(''); 
+        setNotice('Ready for a new booking attempt.'); 
+    }
 
     return <>
         <div><p className="mb-1 text-xs font-bold uppercase tracking-widest text-blue-600">TAXI.RIO / PASSENGER</p><h1 className="text-3xl font-bold tracking-tight text-[#162745]">Your next journey</h1><p className="mt-2 text-sm text-slate-500">Plan a trip and follow its progress.</p></div>

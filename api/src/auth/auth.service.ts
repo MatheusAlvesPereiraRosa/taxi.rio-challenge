@@ -94,7 +94,7 @@ export class AuthService {
             }
         } catch (error: any) {
             if (error instanceof BadRequestException) throw error
-            console.log(error)
+
             throw new BadRequestException('Error when registering user', {
                 description: error.message,
                 cause: new Error(error.message)

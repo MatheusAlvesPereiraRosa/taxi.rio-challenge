@@ -7,8 +7,6 @@ export const CurrentUser = createParamDecorator(
         const request =
             context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-        console.log('Request user:', request.user);
-
         return request.user!;
     },
 );

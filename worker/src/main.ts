@@ -8,6 +8,7 @@ import { MongoClient } from 'mongodb';
 
 import { RideEvent } from './interfaces';
 import { RideEventProcessor } from './ride-event.processor';
+import { jsonLog } from './logging/json-logger';
 
 const QUEUE = 'ride.events';
 
@@ -74,28 +75,30 @@ async function main() {
             try {
                 await processor.process(event);
 
+                jsonLog('info', 'Ride event processed', {
+                    correlationId: event.correlationId,
+                    eventId: event.eventId,
+                    rideId: event.rideId,
+                    status: event.status,
+                    version: event.version,
+                })
+
                 // Acknowledge only after both MongoDB and Redis succeed.
                 channel.ack(message);
             } catch (error) {
-                console.error('Failed to process ride event', {
-                    eventId: event.eventId,
+                jsonLog('error', 'Ride event processing failed', {
                     correlationId: event.correlationId,
-                    error,
-                });
+                    eventId: event.eventId,
+                    rideId: event.rideId,
+                    error: error instanceof Error ? error.message : String(error),
+                    redelivered: message.fields.redelivered,
+                })
 
                 // Temporary failures can be retried.
                 channel.nack(message, false, true);
             }
         },
         { noAck: false },
-    );
-
-    console.log(
-        JSON.stringify({
-            level: 'info',
-            message: 'Worker listening for ride events',
-            queue: QUEUE,
-        }),
     );
 
     const shutdown = async () => {

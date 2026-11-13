@@ -11,13 +11,16 @@ import { RideDetails } from '../components/rides/RideDetails';
 export function RidePage() {
     const { id } = useParams<{ id: string }>();
     const { session } = useAuth();
+
     const [ride, setRide] = useState<Ride | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
 
     async function refresh(rideId: string, token: string) {
         setLoading(true); setError('');
-        try { setRide(await taxiApi.getRide(token, rideId)); }
+        try {
+            setRide(await taxiApi.getRide(token, rideId));
+        }
         catch (err) { setError(errorMessage(err)); }
         finally { setLoading(false); }
     }
@@ -28,9 +31,21 @@ export function RidePage() {
 
     return <>
         <Link to="/passenger" className="inline-flex items-center gap-2 text-sm font-medium text-blue-600"><ArrowLeft size={17} /> Back to dashboard</Link>
-        <div><p className="text-xs font-bold uppercase tracking-widest text-blue-600">PASSENGER / RIDE</p><h1 className="mt-1 text-3xl font-bold text-[#162745]">Ride details</h1></div>
+
+        <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">PASSENGER / RIDE</p><h1 className="mt-1 text-3xl font-bold text-[#162745]">Ride details</h1>
+        </div>
+
         {error && <Alert text={error} />}
-        <Panel title="Tracking" detail="Refresh to fetch the current status from MySQL" action={<button disabled={loading || !id || !session} onClick={() => id && session && void refresh(id, session.accessToken)} className="flex items-center gap-2 text-sm font-semibold text-blue-600"><RefreshCw size={17} /> Refresh</button>}>
+
+        <Panel
+            title="Tracking"
+            detail="Refresh to fetch the current status from MySQL"
+            action={<button disabled={loading || !id || !session}
+                onClick={() => id && session && void refresh(id, session.accessToken)}
+                className="flex items-center gap-2 text-sm font-semibold text-blue-600"><RefreshCw size={17} /> Refresh
+            </button>}
+        >
             {ride ? <RideDetails ride={ride} /> : <p className="py-10 text-center text-sm text-slate-400">{loading ? 'Loading ride...' : 'No ride details available.'}</p>}
         </Panel>
     </>;

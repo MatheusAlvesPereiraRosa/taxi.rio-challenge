@@ -12,7 +12,7 @@ A refactored frontend using **React Router** for actual URL-based pages, layouts
 | `/rides/:id` | `RidePage` | PASSENGER (ownership checked by API) |
 | `/driver` | `DriverPage` | DRIVER |
 
-Registration creates passenger accounts only. Seed driver credentials with your backend seed script. `GET /corridas/:id` is passenger-only in the current API; driver updates use a ride ID and manually chosen known status.
+Registration creates passenger accounts only. Seed driver credentials with your backend seed script. `GET /ride/:id` is passenger-only in the current API; driver updates use a ride ID and manually chosen known status.
 
 ## Commands (PowerShell)
 

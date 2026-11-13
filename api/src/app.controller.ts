@@ -14,7 +14,7 @@ export class AppController {
         return this.appService.getHello();
     }
 
-    @Get()
+    @Get("health")
     async health() {
         try {
             await this.prisma.$queryRaw`SELECT 1`;
