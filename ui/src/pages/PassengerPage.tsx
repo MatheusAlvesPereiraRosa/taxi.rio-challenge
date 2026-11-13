@@ -67,7 +67,10 @@ export function PassengerPage() {
 
         try {
             const created = await taxiApi.createRide(token, origin, destination, attempt.key);
-            setRide(created); setRideId(created.id); sessionStorage.setItem(LAST_RIDE_KEY, created.id);
+            setRide(created); 
+            setRideId(created.id); 
+            sessionStorage.setItem(LAST_RIDE_KEY, created.id);
+            
             sessionStorage.removeItem(PENDING_RIDE_KEY); setPending(null); setNotice('Ride requested successfully.');
         } catch (err) { setError(errorMessage(err)); }
         finally { setBusy(false); }

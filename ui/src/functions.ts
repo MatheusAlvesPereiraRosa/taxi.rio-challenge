@@ -1,3 +1,4 @@
+import type { CreateRideResponse, UpdateRideResponse } from './interfaces';
 import type { Location, Ride, RideStatus, Session, User } from './types';
 
 interface ApiError { message?: string | string[]; error?: string; }
@@ -19,6 +20,22 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     return response.json() as Promise<T>;
 }
 
+export function getNextDriverStatus(
+    currentStatus: RideStatus,
+): RideStatus | null {
+    const index = STATUS_FLOW.indexOf(currentStatus);
+
+    if (index === -1 || index === STATUS_FLOW.length - 1) {
+        return null;
+    }
+
+    const nextStatus = STATUS_FLOW[index + 1];
+
+    return DRIVER_STATUS_FLOW.includes(nextStatus)
+        ? nextStatus
+        : null;
+}
+
 export const taxiApi = {
     login: (email: string, password: string) =>
         request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -27,17 +44,52 @@ export const taxiApi = {
             method: 'POST', body: JSON.stringify({ name, email, password }),
         }),
     me: (token: string) => request<User>('/auth/me', {}, token),
-    createRide: (token: string, origin: Location, destination: Location, key: string) =>
-        request<Ride>('/rides/create', {
-            method: 'POST',
-            headers: { 'Idempotency-Key': key },
-            body: JSON.stringify({ origin, destination }),
-        }, token),
+    createRide: async (
+        token: string,
+        origin: Location,
+        destination: Location,
+        key: string,
+    ): Promise<Ride> => {
+        const response = await request<CreateRideResponse>(
+            '/rides/create',
+            {
+                method: 'POST',
+                headers: {
+                    'Idempotency-Key': key,
+                },
+                body: JSON.stringify({
+                    origin,
+                    destination,
+                }),
+            },
+            token,
+        );
+
+        return response.ride;
+    },
     getRide: (token: string, id: string) => request<Ride>(`/rides/${encodeURIComponent(id)}`, {}, token),
-    updateRide: (token: string, id: string, status: RideStatus) =>
-        request<Ride>(`/rides/${encodeURIComponent(id)}/status`, {
-            method: 'PATCH', body: JSON.stringify({ status }),
-        }, token),
+    getRideForDriver: (token: string, id: string) =>
+        request<Ride>(
+            `/rides/${encodeURIComponent(id)}/driver`,
+            {},
+            token,
+        ),
+    updateRide: async (
+        token: string,
+        id: string,
+        status: RideStatus,
+    ): Promise<Ride> => {
+        const response = await request<UpdateRideResponse>(
+            `/rides/${encodeURIComponent(id)}/status`,
+            {
+                method: 'PATCH',
+                body: JSON.stringify({ status }),
+            },
+            token,
+        );
+
+        return response.updated;
+    }
 };
 
 export function errorMessage(error: unknown): string {
@@ -46,7 +98,7 @@ export function errorMessage(error: unknown): string {
 
 export const PASSENGER_STATUS_FLOW: RideStatus[] = ['REQUESTED', "CANCELLED"];
 export const DRIVER_STATUS_FLOW: RideStatus[] = ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'];
-export const STATUS_FLOW: RideStatus[] = ['REQUESTED','ACCEPTED', 'IN_PROGRESS', 'COMPLETED'];
+export const STATUS_FLOW: RideStatus[] = ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED'];
 export const PASSENGER_STATUS_LABEL: Partial<Record<RideStatus, string>> = {
     REQUESTED: 'Requested', CANCELLED: 'Cancelled',
 };

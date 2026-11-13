@@ -1,14 +1,13 @@
 
 import { useState } from 'react';
-import { ChevronRight, CarFront } from 'lucide-react';
+import { Search, ChevronRight, CarFront } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 
 import {
-    DRIVER_STATUS_FLOW,
-    STATUS_FLOW,
     STATUS_LABEL,
     errorMessage,
+    getNextDriverStatus,
     taxiApi,
 } from '../functions';
 
@@ -23,54 +22,97 @@ export function DriverPage() {
     const { session } = useAuth();
 
     const [rideId, setRideId] = useState('');
-    const [currentStatus, setCurrentStatus] =
-        useState<RideStatus>('REQUESTED');
-
     const [ride, setRide] = useState<Ride | null>(null);
-    const [busy, setBusy] = useState(false);
+
+    const [targetStatus, setTargetStatus] = useState<RideStatus | ''>('');
+
+    const [searching, setSearching] = useState(false);
+    const [updating, setUpdating] = useState(false);
+
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
 
-    // Drivers can accept REQUESTED rides, then advance
-    // through ACCEPTED -> IN_PROGRESS -> COMPLETED.
-    const index = STATUS_FLOW.indexOf(currentStatus);
+    const nextStatus: RideStatus | null = ride
+        ? getNextDriverStatus(ride.status)
+        : null;
 
-    const nextStatus: RideStatus | null =
-        index >= 0 && index < STATUS_FLOW.length - 1
-            ? STATUS_FLOW[index + 1]
-            : null;
+    const canUpdate =
+        !!ride &&
+        !!targetStatus &&
+        targetStatus === nextStatus &&
+        !searching &&
+        !updating;
 
-    // Only statuses allowed for driver updates.
-    const canAdvance =
-        nextStatus !== null &&
-        DRIVER_STATUS_FLOW.includes(nextStatus);
+    function handleRideIdChange(value: string) {
+        setRideId(value);
+
+        // A changed ID invalidates the previously loaded ride.
+        setRide(null);
+        setTargetStatus('');
+        setError('');
+        setNotice('');
+    }
+
+    async function searchRide() {
+        if (!session || !rideId.trim()) return;
+
+        setSearching(true);
+        setError('');
+        setNotice('');
+        setRide(null);
+        setTargetStatus('');
+
+        try {
+            const foundRide = await taxiApi.getRideForDriver(
+                `Bearer ${session.accessToken}`,
+                rideId.trim(),
+            );
+
+            setRide(foundRide);
+
+            const next = getNextDriverStatus(foundRide.status);
+            setTargetStatus(next ?? '');
+
+            setNotice('Ride found successfully.');
+        } catch (err) {
+            setError(errorMessage(err));
+        } finally {
+            setSearching(false);
+        }
+    }
 
     async function advance() {
-        if (!session || !rideId.trim() || !nextStatus || !canAdvance) {
+        if (!session || !ride || !canUpdate || !targetStatus) {
             return;
         }
 
-        setBusy(true);
+        setUpdating(true);
         setError('');
         setNotice('');
 
         try {
-            const updated = await taxiApi.updateRide(
+            const updatedRide = await taxiApi.updateRide(
                 session.accessToken,
-                rideId.trim(),
-                nextStatus,
+                ride.id,
+                targetStatus,
             );
 
-            setRide(updated);
-            setCurrentStatus(updated.status);
+            // Update the local state using the API response,
+            // rather than assuming that the operation succeeded.
+            setRide(updatedRide);
+
+            const next = getNextDriverStatus(updatedRide.status);
+            setTargetStatus(next ?? '');
 
             setNotice(
-                `Ride changed to ${STATUS_LABEL[updated.status]}.`,
+                `Ride changed to ${STATUS_LABEL[updatedRide.status]}.`,
             );
         } catch (err) {
-            setError(errorMessage(err));
+            setError(
+                `${errorMessage(err)}. Search again to refresh the current status.`,
+            );
         } finally {
-            setBusy(false);
+            setUpdating(false);
         }
     }
 
@@ -86,7 +128,7 @@ export function DriverPage() {
                 </h1>
 
                 <p className="mt-2 text-sm text-slate-500">
-                    Accept ride requests and update their progress.
+                    Search for a ride, check its current status and update its progress.
                 </p>
             </div>
 
@@ -96,73 +138,118 @@ export function DriverPage() {
             <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_.9fr]">
                 <Panel
                     title="Manage a ride"
-                    detail="Enter a ride ID and its current status"
+                    detail="Find a ride using its ID"
                 >
                     <div className="space-y-5">
-                        <Field
-                            label="Ride ID"
-                            value={rideId}
-                            onChange={(value) => {
-                                setRideId(value);
-                                setRide(null);
-                                setCurrentStatus('REQUESTED');
+
+                        {/* Search section */}
+                        <form
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                void searchRide();
                             }}
-                            placeholder="Paste ride UUID"
-                        />
-
-                        <label className="block">
-                            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Known current status
-                            </span>
-
-                            <select
-                                value={currentStatus}
-                                onChange={(e) =>
-                                    setCurrentStatus(e.target.value as RideStatus)
-                                }
-                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                            >
-                                {STATUS_FLOW.map((status) => (
-                                    <option key={status} value={status}>
-                                        {STATUS_LABEL[status]}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <p className="text-xs leading-5 text-slate-500">
-                            The backend's GET ride endpoint is passenger-only.
-                            Drivers must provide a known ride ID and its current
-                            status.
-                        </p>
-
-                        <button
-                            type="button"
-                            disabled={!rideId.trim() || !canAdvance || busy}
-                            onClick={advance}
-                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="space-y-3"
                         >
-                            {busy
-                                ? 'Updating...'
-                                : nextStatus
-                                    ? `Set ${STATUS_LABEL[nextStatus]}`
-                                    : 'Ride completed'}
+                            <Field
+                                label="Ride ID"
+                                value={rideId}
+                                onChange={handleRideIdChange}
+                                placeholder="Paste ride UUID"
+                            />
 
-                            <ChevronRight size={18} />
-                        </button>
+                            <button
+                                type="submit"
+                                disabled={!rideId.trim() || searching || updating}
+                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-blue-600 bg-white font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Search size={18} />
+                                {searching ? 'Searching...' : 'Search ride'}
+                            </button>
+                        </form>
+
+                        {/* Status management — only visible after lookup */}
+                        {ride && (
+                            <div className="space-y-5 border-t border-slate-200 pt-5">
+
+                                {/* Current status from MySQL */}
+                                <div>
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        Current status
+                                    </p>
+
+                                    <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
+                                        {STATUS_LABEL[ride.status]}
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Current status retrieved from the API.
+                                    </p>
+                                </div>
+
+                                {/* New status */}
+                                <label className="block">
+                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        New status
+                                    </span>
+
+                                    <select
+                                        value={targetStatus}
+                                        onChange={(event) =>
+                                            setTargetStatus(event.target.value as RideStatus | '')
+                                        }
+                                        disabled={!nextStatus || updating}
+                                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                                    >
+                                        {!nextStatus ? (
+                                            <option value="">
+                                                No further transitions available
+                                            </option>
+                                        ) : (
+                                            <>
+                                                <option value="">Select new status</option>
+                                                <option value={nextStatus}>
+                                                    {STATUS_LABEL[nextStatus]}
+                                                </option>
+                                            </>
+                                        )}
+                                    </select>
+
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Only the next valid transition is available.
+                                    </p>
+                                </label>
+
+                                <button
+                                    type="button"
+                                    disabled={!canUpdate}
+                                    onClick={() => void advance()}
+                                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {updating
+                                        ? 'Updating...'
+                                        : nextStatus
+                                            ? `Set ${STATUS_LABEL[nextStatus]}`
+                                            : 'Ride finished'}
+
+                                    <ChevronRight size={18} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </Panel>
 
                 <Panel
-                    title="Last updated ride"
-                    detail="Details from your successful status update"
+                    title="Ride details"
+                    detail="Current ride information"
                 >
                     {ride ? (
                         <RideDetails ride={ride} />
                     ) : (
                         <div className="flex flex-col items-center py-10 text-center text-slate-400">
                             <CarFront size={32} />
-                            <p className="mt-3 text-sm">No ride updated yet</p>
+                            <p className="mt-3 text-sm">
+                                Search for a ride to view its details
+                            </p>
                         </div>
                     )}
                 </Panel>

@@ -1,12 +1,12 @@
 import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
+    Body,
+    Controller,
+    Get,
+    Headers,
+    Param,
+    Patch,
+    Post,
+    UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/guards/roles.guard';
@@ -46,6 +46,15 @@ export class RidesController {
         @CurrentUser() user: interfaces.AuthenticatedUser,
     ) {
         return this.ridesService.findOne(id, user);
+    }
+
+    @Get(':id/driver')
+    @Roles(UserRole.DRIVER)
+    getRideForDriver(
+        @Param('id') id: string,
+        @CurrentUser() user: interfaces.AuthenticatedUser,
+    ) {
+        return this.ridesService.findForDriver(id, user);
     }
 
     @Patch(':id/status')

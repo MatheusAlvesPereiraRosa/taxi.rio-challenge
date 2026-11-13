@@ -139,6 +139,25 @@ export class RidesService {
         return ride;
     }
 
+    async findForDriver(id: string, user: AuthenticatedUser) {
+        const ride = await this.prisma.ride.findUnique({
+            where: { id },
+        });
+
+        if (!ride) {
+            throw new NotFoundException('Ride not found');
+        }
+
+        if (
+            ride.driverId === user.id ||
+            (ride.status === RideStatus.REQUESTED && ride.driverId === null)
+        ) {
+            return ride;
+        }
+
+        throw new NotFoundException('Ride not found or unavailable');
+    }
+
     async updateStatus(
         id: string,
         dto: UpdateRideStatusDto,
