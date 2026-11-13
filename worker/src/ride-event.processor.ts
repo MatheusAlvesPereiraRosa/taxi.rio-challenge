@@ -1,7 +1,6 @@
 import { Collection, MongoClient } from "mongodb";
 import { RideEvent } from "./interfaces";
 import Redis from "ioredis";
-import { jsonLog } from "./logging/json-logger";
 
 interface StoreRideEvent extends RideEvent {
     processedAt: Date
